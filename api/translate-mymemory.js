@@ -11,10 +11,21 @@ module.exports = async (req, res) => {
         return res.status(400).json({ success: false, error: '번역할 텍스트와 대상 언어가 필요합니다.' });
     }
 
-    // MyMemory API를 위한 언어 코드 매핑 (특히 zh-TW 처리)
-    // MyMemory는 zh-TW 대신 zh를 요구할 수 있으므로, 필요에 따라 매핑합니다.
-    const myMemorySource = (source === 'zh-TW') ? 'zh' : source;
-    const myMemoryTarget = (target === 'zh-TW') ? 'zh' : target;
+    // MyMemory API를 위한 언어 코드 매핑. MyMemory는 특정 중국어 변형을 요구할 수 있습니다.
+    // MyMemory Supported Languages: http://mymemory.translated.net/doc/supported-languages/
+    const mapLanguageCode = (langCode) => {
+        switch (langCode) {
+            case 'zh': // Simplified Chinese in frontend
+                return 'zh-CHS'; // MyMemory's code for Simplified Chinese
+            case 'zh-TW': // Traditional Chinese (Taiwan) in frontend
+                return 'zh-CHT'; // MyMemory's code for Traditional Chinese
+            default:
+                return langCode; // For other standard ISO 639-1 codes
+        }
+    };
+
+    const myMemorySource = mapLanguageCode(source);
+    const myMemoryTarget = mapLanguageCode(target);
 
     let langpairParam = '';
     // source가 'auto' 또는 null이 아닐 때 (명시적으로 언어가 선택되었을 때)
