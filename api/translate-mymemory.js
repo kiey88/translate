@@ -19,8 +19,10 @@ module.exports = async (req, res) => {
                 return 'zh-CHS'; // MyMemory's code for Simplified Chinese
             case 'zh-TW': // Traditional Chinese (Taiwan) in frontend
                 return 'zh-CHT'; // MyMemory's code for Traditional Chinese
+            // MyMemory typically uses two-letter ISO codes, but handles some three-letter ones.
+            // The frontend uses standard ISO codes, so default case should work for most.
             default:
-                return langCode; // For other standard ISO 639-1 codes
+                return langCode;
         }
     };
 
@@ -28,14 +30,12 @@ module.exports = async (req, res) => {
     const myMemoryTarget = mapLanguageCode(target);
 
     let langpairParam = '';
-    // source가 'auto' 또는 null이 아닐 때 (명시적으로 언어가 선택되었을 때)
-    if (myMemorySource && myMemorySource !== 'auto' && myMemorySource !== null) {
+    // MyMemory 문서에 따르면, 자동 감지를 위해 langpair 파라미터를 아예 생략할 수 있습니다.
+    // `source`가 'auto' (즉, 프론트엔드에서 `null`로 넘어옴) 이거나 빈 문자열일 경우 생략합니다.
+    if (myMemorySource && myMemorySource !== 'auto' && myMemorySource !== null && myMemorySource !== '') {
         langpairParam = `&langpair=${myMemorySource}|${myMemoryTarget}`;
-    } else {
-        // source가 'auto' 또는 null일 때 (자동 감지 요청)
-        // MyMemory에 원본 언어는 자동 감지하고 대상 언어만 지정하도록 요청합니다.
-        langpairParam = `&langpair=|${myMemoryTarget}`;
     }
+    // else, langpairParam remains an empty string, effectively omitting it from the URL.
 
     // MyMemory API의 무료 사용 제한을 완화하기 위해 이메일 주소를 제공할 수 있습니다.
     // Vercel 환경 변수 `MYMEMORY_EMAIL`에 이메일 주소를 설정해주세요.
@@ -60,6 +60,7 @@ module.exports = async (req, res) => {
         const data = await apiResponse.json();
 
         // MyMemory API 응답에서 번역된 텍스트를 추출하고 성공적으로 응답합니다.
+        // MyMemory API 응답 구조: { responseData: { translatedText: "...", match: ... }, responseDetails: "...", responseStatus: ... }
         if (data && data.responseData && data.responseData.translatedText) {
             const translatedText = data.responseData.translatedText;
             // 성공 응답 (HTTP 200 OK)
@@ -71,7 +72,7 @@ module.exports = async (req, res) => {
         } else {
             // API 응답 형식이 예상과 다른 경우 (번역 결과가 없는 경우 등)
             // 콘솔에 API 응답 데이터를 출력하여 디버깅에 도움을 줍니다.
-            console.error('MyMemory API response data missing translatedText:', data);
+            console.error('MyMemory API response data missing translatedText or unexpected format:', data);
             throw new Error(data.responseDetails || 'MyMemory API 응답 형식이 예상과 다릅니다: 번역 결과 없음');
         }
     } catch (error) {
@@ -83,4 +84,3 @@ module.exports = async (req, res) => {
             provider: 'MyMemory'
         });
     }
-};
